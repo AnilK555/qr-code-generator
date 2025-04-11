@@ -1,75 +1,97 @@
-import React, { useState, useRef } from 'react';
-import QRCode from 'react-qr-code';
-import { toPng } from 'html-to-image';
+import React, { useState, useRef } from "react";
+import QRCode from "react-qr-code";
+import axios from "axios";
+import { toPng } from "html-to-image";
 
 const QRCodeGenerator = () => {
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        address: '',
-        company: '',
-        website: '',
-    });
+    const [link, setLink] = useState("");
+    const [logo, setLogo] = useState("");
+    const [apiData, setApiData] = useState(null);
+    const [loading, setLoading] = useState(false);
 
-    const [qrValue, setQrValue] = useState('');
     const qrRef = useRef(null);
+    const handleChange = async (e) => {
+        const value = e.target.value;
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        if (!value) return;
+
+        setLoading(true); // Start loading
+
+        try {
+            const response = await axios.get("https://jsonplaceholder.typicode.com/posts/1");
+            setApiData(response.data);
+        } catch (error) {
+            console.error("API call failed", error);
+        } finally {
+            setLoading(false); // Stop loading
+        }
+
+        const links = {
+            Flipkart: "https://www.flipkart.com",
+            YouTube: "https://www.youtube.com",
+            Amazon: "https://www.amazon.in",
+        };
+
+        const logos = {
+            Flipkart: "/logos/flipkart-logo-39904.png",
+            YouTube: "/logos/youtube-play-button-28298.png",
+            Amazon: "/logos/picture-logo-42725.png",
+        };
+
+        setLink(links[value]);
+        setLogo(logos[value]);
     };
 
-    const handleGenerateQR = () => {
-        const qrString = Object.entries(formData)
-            .map(([key, value]) => `${key[0].toUpperCase() + key.slice(1)}: ${value}`)
-            .join('\n');
-        setQrValue(qrString);
-    };
-
-    const handleDownloadQR = () => {
+    const downloadQRCode = () => {
         if (qrRef.current === null) return;
 
         toPng(qrRef.current)
             .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = 'qr-code.png';
+                const link = document.createElement("a");
+                link.download = "qr-code.png";
                 link.href = dataUrl;
                 link.click();
             })
             .catch((err) => {
-                console.error('Failed to download QR code:', err);
+                console.error("Download failed", err);
             });
     };
 
     return (
-        <div className="generator-conatiner">
-            <h2 className="text-2xl font-bold mb-4">QR Code Generator</h2>
+        <div className="container">
+            <h2>QR Code Generator</h2>
 
-            {['name', 'email', 'phone', 'address', 'company', 'website'].map((field) => (
-                <input
-                    key={field}
-                    name={field}
-                    placeholder={field[0].toUpperCase() + field.slice(1)}
-                    value={formData[field]}
-                    onChange={handleChange}
-                    className="text-input"
+            <label htmlFor="siteSelect">Choose a website:</label>
+            <select id="siteSelect" onChange={handleChange} defaultValue="">
+                <option value="" disabled>
+                    -- Select --
+                </option>
+                <option value="Flipkart">Flipkart</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Amazon">Amazon</option>
+            </select>
 
-                />
-            ))}
-
-            <button onClick={handleGenerateQR} className="generate-button">
-                Generate QR
-            </button>
-
-            {qrValue && (
-                <div className="mt-6 text-center">
-                    <div ref={qrRef} className="inline-block p-4 bg-white rounded shadow">
-                        <QRCode value={qrValue} />
+            <div className="link-box">
+                <label>Selected Link:</label>
+                <input type="text" value={link} readOnly />
+            </div>
+            {loading && <div className="loader-spinner"></div>}
+            {(link && !loading) && (
+                <div className="logo-box">
+                    <div className="qr-container" ref={qrRef}>
+                        <QRCode value={link} size={200} bgColor="#ffffff" fgColor="#000000" />
+                        {logo && <img src={logo} alt="logo" className="qr-logo" />}
                     </div>
-                    <button onClick={handleDownloadQR} className="download-button">
-                        Download QR
+                    <button className="download-btn" onClick={downloadQRCode}>
+                        Download QR Code
                     </button>
+                </div>
+            )}
+
+            {(apiData && !loading) && (
+                <div className="api-data">
+                    <h4>Fetched API Data:</h4>
+                    <pre>{JSON.stringify(apiData, null, 2)}</pre>
                 </div>
             )}
         </div>
